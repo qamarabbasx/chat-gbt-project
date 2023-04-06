@@ -1,5 +1,5 @@
 // create a new express app
-
+require('dotenv').config();
 const express = require('express');
 const app = express();
 
@@ -8,9 +8,10 @@ const readlineSync = require('readline-sync');
 
 // configuration for openAi
 const configuration = new Configuration({
-  apiKey: 'your api key',
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
+console.log('API KEY', process.env.OPENAI_API_KEY);
 const openai = new OpenAIApi(configuration);
 
 const history = [];
@@ -23,61 +24,51 @@ app.post('/chat', async (req, res) => {
 
   try {
     console.log(keywords);
-    const titlePrompt = `Create a title for a product related to "${keywords}".`;
-    const descriptionPrompt = `Create a description for a product related to "${keywords}".`;
-
-    // const title = await generateTitle(titlePrompt);
-    // const description = await generateDescription(descriptionPrompt);
-
     const response = await openai.createCompletion({
       model: 'text-davinci-003',
-      prompt: `Generate a product title and description for the keyword "${keywords} and split them with :::"`,
+      prompt: `Generate a product title and description for the keyword ${keywords} and split both with :::`,
       temperature: 0.4,
       max_tokens: 64,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
     });
-
     const { choices } = response.data;
     const { text } = choices[0];
     console.log(text);
-    const [title, description] = text.split(':::');
-    // .map((str) => str.trim().replace(/\n/g, ''));
+    // const [title, description] = text.split(":::").map((str) => str.trim().replace(/\n/g, ''));
+    // console.log({ title, description });
+
+    const [title, description] = text
+      .split(':::')
+      .map((str) => str.trim().replace(/\n/g, ''));
     console.log({ title, description });
+    // const resData = {};
+    // [title, description].forEach((s) => {
+    //   const [key, value] = s.split(':').map((s) => s.trim());
+    //   resData[key] = value;
+    // });
+
+    // console.log(resData);
 
     res.status(200).json({
       status: 'success',
+      d: text,
       data: {
-        productTitle: title,
-        productDescription: description,
+        title: title ? title.replace('Product Title: ', '') : '',
+        description: description
+          ? description.replace('Product Description: ', '')
+          : '',
       },
     });
   } catch (error) {
     res.status(400).json({
-      status: 'fail',
+      status: 'false',
       message: error.message,
     });
   }
 });
 
-// for swagger
-const swaggerUi = require('swagger-ui-express');
-const YAML = require('yamljs');
-const swaggerJsDocs = YAML.load('./api.yaml');
-
-// connect Db with localhost
-async () => {
-  try {
-    // const conn = await mongoose.connect(process.env.MONGO_URI);
-    console.log('MongoDB Connected');
-  } catch (err) {
-    console.log('MongoDB Connection failed', err);
-  }
-};
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerJsDocs));
-
-app.listen(3001, () => {
-  console.log('Our Chat bot is running on port 3001');
+app.listen(3000, () => {
+  console.log('Our Chat bot is running on port 3000');
 });
