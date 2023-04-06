@@ -1,10 +1,10 @@
 // create a new express app
 require('dotenv').config();
+// const localStorage = require('localStorage');
 const express = require('express');
 const app = express();
 
 const { Configuration, OpenAIApi } = require('openai');
-const readlineSync = require('readline-sync');
 
 // configuration for openAi
 const configuration = new Configuration({
@@ -21,7 +21,10 @@ app.use(express.json());
 // create a API for openAi Chat bot
 app.post('/chat', async (req, res) => {
   const keywords = req.body.keywords;
-
+  const prevChat = history.slice(-5); // get last 5 chats from history
+  prevChat.sort((a, b) => {
+    return prevChat.indexOf(b) - prevChat.indexOf(a);
+  });
   try {
     console.log(keywords);
     const response = await openai.createCompletion({
@@ -36,8 +39,6 @@ app.post('/chat', async (req, res) => {
     const { choices } = response.data;
     const { text } = choices[0];
     console.log(text);
-    // const [title, description] = text.split(":::").map((str) => str.trim().replace(/\n/g, ''));
-    // console.log({ title, description });
 
     const [title, description] = text
       .split(':::')
@@ -50,16 +51,21 @@ app.post('/chat', async (req, res) => {
     // });
 
     // console.log(resData);
+    resData = {
+      title: title ? title.replace('Product Title: ', '') : '',
+      description: description
+        ? description.replace('Product Description: ', '')
+        : '',
+    };
+    history.push({
+      keywords,
+      response: resData,
+    });
 
     res.status(200).json({
       status: 'success',
-      d: text,
-      data: {
-        title: title ? title.replace('Product Title: ', '') : '',
-        description: description
-          ? description.replace('Product Description: ', '')
-          : '',
-      },
+      history: prevChat,
+      data: resData,
     });
   } catch (error) {
     res.status(400).json({
